@@ -1,0 +1,345 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Pichorruda</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #17152f;
+  touch-action: none;
+}
+
+#pantalla {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #29234b, #1a1837 65%, #101027);
+}
+
+.animal {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(.3);
+  font-size: clamp(60px, 12vw, 100px);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: aparecer 2.5s ease-out forwards;
+}
+
+@keyframes aparecer {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(-12deg); }
+  18% { opacity: 1; transform: translate(-50%,-50%) scale(1.15) rotate(5deg); }
+  35% { transform: translate(-50%,-50%) scale(1) rotate(0); }
+  75% { opacity: 1; transform: translate(calc(-50% + var(--x)),calc(-50% - 25px)) scale(1.05); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--x)),calc(-50% - 65px)) scale(.85); }
+}
+
+.gusanito {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: #b7f58b;
+  box-shadow: 0 0 10px rgba(183,245,139,.8);
+  transform: scale(.7);
+  transition: transform .12s;
+}
+
+.gusanito::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  width: 4px;
+  height: 4px;
+  background: #25364a;
+  border-radius: 50%;
+  box-shadow: 8px 0 #25364a;
+}
+
+.gusanito::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 13px;
+  width: 8px;
+  height: 3px;
+  border-bottom: 1.5px solid #25364a;
+  border-radius: 50%;
+}
+
+.gusanito.cuerpo {
+  width: 17px;
+  height: 17px;
+  background: #8ee46e;
+  opacity: .9;
+}
+
+.gusanito.cuerpo::before,
+.gusanito.cuerpo::after {
+  display: none;
+}
+</style>
+</head>
+
+<body>
+<div id="pantalla"></div>
+
+<script>
+(function () {
+  var pantalla = document.getElementById("pantalla");
+  var audio = null;
+  var ultimoToque = 0;
+  var puntosGusano = [];
+  var segmentos = [];
+  var maxSegmentos = 10;
+
+  var animales = [
+    { emoji:"🐶", nombre:"perro", tipo:"perro" },
+    { emoji:"🐱", nombre:"gato", tipo:"gato" },
+    { emoji:"🐮", nombre:"vaca", tipo:"vaca" },
+    { emoji:"🐷", nombre:"cerdo", tipo:"cerdo" },
+    { emoji:"🐴", nombre:"caballo", tipo:"caballo" },
+    { emoji:"🐑", nombre:"oveja", tipo:"oveja" },
+    { emoji:"🐐", nombre:"cabra", tipo:"oveja" },
+    { emoji:"🐔", nombre:"gallina", tipo:"ave" },
+    { emoji:"🐓", nombre:"gallo", tipo:"ave" },
+    { emoji:"🐤", nombre:"pollito", tipo:"ave" },
+    { emoji:"🦆", nombre:"pato", tipo:"ave" },
+    { emoji:"🦃", nombre:"pavo", tipo:"ave" },
+    { emoji:"🫏", nombre:"burro", tipo:"caballo" },
+    { emoji:"🐭", nombre:"ratón", tipo:"raton" },
+    { emoji:"🐹", nombre:"hámster", tipo:"raton" },
+    { emoji:"🐰", nombre:"conejo", tipo:"conejo" },
+    { emoji:"🦁", nombre:"león", tipo:"felino" },
+    { emoji:"🐯", nombre:"tigre", tipo:"felino" },
+    { emoji:"🐆", nombre:"leopardo", tipo:"felino" },
+    { emoji:"🐘", nombre:"elefante", tipo:"elefante" },
+    { emoji:"🐒", nombre:"mono", tipo:"mono" },
+    { emoji:"🦍", nombre:"gorila", tipo:"mono" },
+    { emoji:"🐻", nombre:"oso", tipo:"oso" },
+    { emoji:"🐼", nombre:"panda", tipo:"oso" },
+    { emoji:"🦊", nombre:"zorro", tipo:"perro" },
+    { emoji:"🐺", nombre:"lobo", tipo:"perro" },
+    { emoji:"🦝", nombre:"mapache", tipo:"raton" },
+    { emoji:"🦓", nombre:"cebra", tipo:"caballo" },
+    { emoji:"🦒", nombre:"jirafa", tipo:"vaca" },
+    { emoji:"🦛", nombre:"hipopótamo", tipo:"vaca" },
+    { emoji:"🦏", nombre:"rinoceronte", tipo:"vaca" },
+    { emoji:"🐪", nombre:"camello", tipo:"vaca" },
+    { emoji:"🦘", nombre:"canguro", tipo:"conejo" },
+    { emoji:"🦥", nombre:"perezoso", tipo:"mono" },
+    { emoji:"🦔", nombre:"erizo", tipo:"raton" },
+    { emoji:"🦇", nombre:"murciélago", tipo:"ave" },
+    { emoji:"🐧", nombre:"pingüino", tipo:"ave" },
+    { emoji:"🦉", nombre:"búho", tipo:"ave" },
+    { emoji:"🦜", nombre:"loro", tipo:"ave" },
+    { emoji:"🦚", nombre:"pavo real", tipo:"ave" },
+    { emoji:"🦢", nombre:"cisne", tipo:"ave" },
+    { emoji:"🦩", nombre:"flamenco", tipo:"ave" },
+    { emoji:"🐸", nombre:"rana", tipo:"rana" },
+    { emoji:"🐢", nombre:"tortuga", tipo:"rana" },
+    { emoji:"🐍", nombre:"serpiente", tipo:"serpiente" },
+    { emoji:"🦎", nombre:"lagarto", tipo:"serpiente" },
+    { emoji:"🐬", nombre:"delfín", tipo:"delfin" },
+    { emoji:"🐳", nombre:"ballena", tipo:"ballena" },
+    { emoji:"🦭", nombre:"foca", tipo:"delfin" },
+    { emoji:"🐺", nombre:"lobo", tipo:"perro" }
+  ];
+
+  function obtenerAudio() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audio) audio = new AC();
+    if (audio.state === "suspended") audio.resume();
+    return audio;
+  }
+
+  /*
+   * Estos sonidos son aproximaciones electrónicas suaves.
+   * Para sonidos reales necesitaremos grabaciones de animales.
+   */
+  function reproducirSonido(tipo) {
+    try {
+      var ctx = obtenerAudio();
+      if (!ctx) return;
+
+      var ahora = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var volumen = ctx.createGain();
+      var filtro = ctx.createBiquadFilter();
+
+      var frecuencia = 500;
+      var duracion = 0.28;
+      var forma = "sine";
+
+      switch (tipo) {
+        case "perro":
+          frecuencia = 190; forma = "triangle"; duracion = 0.18; break;
+        case "gato":
+          frecuencia = 720; forma = "sine"; duracion = 0.35; break;
+        case "vaca":
+          frecuencia = 125; forma = "sawtooth"; duracion = 0.55; break;
+        case "cerdo":
+          frecuencia = 260; forma = "triangle"; duracion = 0.22; break;
+        case "caballo":
+          frecuencia = 330; forma = "triangle"; duracion = 0.3; break;
+        case "oveja":
+          frecuencia = 410; forma = "sawtooth"; duracion = 0.4; break;
+        case "ave":
+          frecuencia = 900 + Math.random() * 500; forma = "sine"; duracion = 0.16; break;
+        case "raton":
+          frecuencia = 1100; forma = "sine"; duracion = 0.12; break;
+        case "conejo":
+          frecuencia = 600; forma = "sine"; duracion = 0.12; break;
+        case "felino":
+          frecuencia = 150; forma = "sawtooth"; duracion = 0.45; break;
+        case "elefante":
+          frecuencia = 230; forma = "triangle"; duracion = 0.48; break;
+        case "mono":
+          frecuencia = 420; forma = "square"; duracion = 0.2; break;
+        case "oso":
+          frecuencia = 170; forma = "triangle"; duracion = 0.35; break;
+        case "rana":
+          frecuencia = 300; forma = "square"; duracion = 0.22; break;
+        case "serpiente":
+          frecuencia = 1800; forma = "sawtooth"; duracion = 0.18; break;
+        case "delfin":
+          frecuencia = 1250; forma = "sine"; duracion = 0.25; break;
+        case "ballena":
+          frecuencia = 180; forma = "sine"; duracion = 0.65; break;
+      }
+
+      osc.type = forma;
+      osc.frequency.setValueAtTime(frecuencia, ahora);
+      osc.frequency.exponentialRampToValueAtTime(
+        Math.max(70, frecuencia * 0.75), ahora + duracion
+      );
+
+      filtro.type = "lowpass";
+      filtro.frequency.value = 2200;
+
+      volumen.gain.setValueAtTime(0.0001, ahora);
+      volumen.gain.linearRampToValueAtTime(0.045, ahora + 0.035);
+      volumen.gain.exponentialRampToValueAtTime(0.0001, ahora + duracion);
+
+      osc.connect(filtro);
+      filtro.connect(volumen);
+      volumen.connect(ctx.destination);
+
+      osc.start(ahora);
+      osc.stop(ahora + duracion + 0.02);
+    } catch (e) {}
+  }
+
+  function mostrarAnimal(x, y) {
+    var animal = animales[Math.floor(Math.random() * animales.length)];
+    var el = document.createElement("div");
+
+    el.className = "animal";
+    el.textContent = animal.emoji;
+    el.setAttribute("aria-label", animal.nombre);
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    el.style.setProperty("--x", (Math.random() * 36 - 18) + "px");
+
+    pantalla.appendChild(el);
+    reproducirSonido(animal.tipo);
+
+    setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 2500);
+  }
+
+  function crearSegmento(x, y, cabeza) {
+    var el = document.createElement("div");
+    el.className = "gusanito" + (cabeza ? "" : " cuerpo");
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    pantalla.appendChild(el);
+    segmentos.push(el);
+
+    while (segmentos.length > maxSegmentos) {
+      var viejo = segmentos.shift();
+      if (viejo.parentNode) viejo.parentNode.removeChild(viejo);
+    }
+  }
+
+  function moverGusano(x, y) {
+    puntosGusano.push({ x: x, y: y });
+
+    if (puntosGusano.length % 2 === 0) {
+      crearSegmento(x, y, puntosGusano.length % 8 === 0);
+    }
+
+    if (puntosGusano.length > 80) puntosGusano.shift();
+  }
+
+  function iniciarToque(x, y) {
+    mostrarAnimal(x, y);
+    puntosGusano = [];
+    segmentos.forEach(function (el) {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    segmentos = [];
+    moverGusano(x, y);
+  }
+
+  pantalla.addEventListener("touchstart", function (e) {
+    var t = e.touches[0];
+    iniciarToque(t.clientX, t.clientY);
+  }, { passive: true });
+
+  pantalla.addEventListener("touchmove", function (e) {
+    var t = e.touches[0];
+    moverGusano(t.clientX, t.clientY);
+  }, { passive: true });
+
+  pantalla.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "touch") return;
+    iniciarToque(e.clientX, e.clientY);
+  });
+
+  pantalla.addEventListener("pointermove", function (e) {
+    if (e.pointerType === "mouse" && e.buttons === 1) {
+      moverGusano(e.clientX, e.clientY);
+    }
+  });
+
+})();
+</script>
+
+<link rel="manifest" href="./manifest.json">
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js")
+        .catch(function (error) {
+          console.log("No se pudo registrar el modo sin conexión:", error);
+        });
+    });
+  }
+</script>
+</body>
+</html>
